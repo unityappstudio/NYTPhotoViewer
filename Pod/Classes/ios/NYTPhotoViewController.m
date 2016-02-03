@@ -75,30 +75,23 @@ NSString* const NYTPhotoViewControllerPhotoImageUpdatedNotification = @"NYTPhoto
 
 - (void)loadImageAtItem:(id <NYTPhoto>)photo {
     SDWebImageManager* manager = [SDWebImageManager sharedManager];
-    if ([manager cachedImageExistsForURL:[NSURL URLWithString:photo.urlImageString]]) {
-        UIImage* image = [manager.imageCache imageFromDiskCacheForKey:photo.urlImageString];
-        [self updateImage:image];
-    } else {
-        __weak __typeof(self) weakSelf = self;
-        [manager cachedImageExistsForURL:[NSURL URLWithString:photo.urlThumbString]
-                              completion:^(BOOL isInCache) {
-              if (isInCache) {
-                  UIImage* thumbImage = [manager.imageCache imageFromDiskCacheForKey:photo.urlThumbString];
-                  [weakSelf.scalingImageView updateImage:thumbImage];
-              }
-              [manager downloadImageWithURL:[NSURL URLWithString:photo.urlImageString]
-                                    options:0
-                                   progress:^(NSInteger receivedSize, NSInteger expectedSize) {
-                                       // progression tracking code
-                                   } completed:^(UIImage* image, NSError* error, SDImageCacheType cacheType, BOOL finished, NSURL* imageURL) {
-                                       if (image) {
-                                           [weakSelf updateImage:image];
-                                       }
-                                   }];
-          }];
-
-    }
-    
+    __weak __typeof(self) weakSelf = self;
+    [manager cachedImageExistsForURL:[NSURL URLWithString:photo.urlThumbString]
+                          completion:^(BOOL isInCache) {
+          if (isInCache) {
+              UIImage* thumbImage = [manager.imageCache imageFromDiskCacheForKey:photo.urlThumbString];
+              [weakSelf.scalingImageView updateImage:thumbImage];
+          }
+          [manager downloadImageWithURL:[NSURL URLWithString:photo.urlImageString]
+                                options:0
+                               progress:^(NSInteger receivedSize, NSInteger expectedSize) {
+                                   // progression tracking code
+                               } completed:^(UIImage* image, NSError* error, SDImageCacheType cacheType, BOOL finished, NSURL* imageURL) {
+                                   if (image) {
+                                       [weakSelf updateImage:image];
+                                   }
+                               }];
+    }];
 }
 
 - (instancetype)initWithPhoto:(id <NYTPhoto>)photo loadingView:(UIView*)loadingView notificationCenter:(NSNotificationCenter*)notificationCenter {
