@@ -2,6 +2,7 @@ source 'https://github.com/CocoaPods/Specs.git'
 
 target 'NYTPhotoViewer', :exclusive => true do
   pod "NYTPhotoViewer", :path => "../"
+  pod 'SDWebImage'
 end
 
 target 'Tests', :exclusive => true do

@@ -10,7 +10,6 @@
 #import "NYTPhoto.h"
 #import "NYTScalingImageView.h"
 
-#import "IAWGalleryItem.h"
 #import <SDWebImageManager.h>
 
 NSString* const NYTPhotoViewControllerPhotoImageUpdatedNotification = @"NYTPhotoViewControllerPhotoImageUpdatedNotification";
@@ -74,29 +73,32 @@ NSString* const NYTPhotoViewControllerPhotoImageUpdatedNotification = @"NYTPhoto
 
 #pragma mark - NYTPhotoViewController
 
-- (void)loadImageAtItem:(IAWGalleryItem*)item {
-    if (!item.image) {
+- (void)loadImageAtItem:(id <NYTPhoto>)photo {
+    SDWebImageManager* manager = [SDWebImageManager sharedManager];
+    if ([manager cachedImageExistsForURL:[NSURL URLWithString:photo.urlImageString]]) {
+        UIImage* image = [manager.imageCache imageFromDiskCacheForKey:photo.urlImageString];
+        [self updateImage:image];
+    } else {
         __weak __typeof(self) weakSelf = self;
-
-        SDWebImageManager* manager = [SDWebImageManager sharedManager];
-        [manager cachedImageExistsForURL:[NSURL URLWithString:item.URLThumbString]
+        [manager cachedImageExistsForURL:[NSURL URLWithString:photo.urlThumbString]
                               completion:^(BOOL isInCache) {
-            if (isInCache) {
-                UIImage* thumbImage = [manager.imageCache imageFromDiskCacheForKey:item.URLThumbString];
-                [weakSelf.scalingImageView updateImage:thumbImage];
-            }
-            [manager downloadImageWithURL:[NSURL URLWithString:item.URLString]
-                                  options:0
-                                 progress:^(NSInteger receivedSize, NSInteger expectedSize) {
-                // progression tracking code
-            } completed:^(UIImage* image, NSError* error, SDImageCacheType cacheType, BOOL finished, NSURL* imageURL) {
-                if (image) {
-                    item.image = image;
-                    [weakSelf updateImage:image];
-                }
-            }];
-        }];
+              if (isInCache) {
+                  UIImage* thumbImage = [manager.imageCache imageFromDiskCacheForKey:photo.urlThumbString];
+                  [weakSelf.scalingImageView updateImage:thumbImage];
+              }
+              [manager downloadImageWithURL:[NSURL URLWithString:photo.urlImageString]
+                                    options:0
+                                   progress:^(NSInteger receivedSize, NSInteger expectedSize) {
+                                       // progression tracking code
+                                   } completed:^(UIImage* image, NSError* error, SDImageCacheType cacheType, BOOL finished, NSURL* imageURL) {
+                                       if (image) {
+                                           [weakSelf updateImage:image];
+                                       }
+                                   }];
+          }];
+
     }
+    
 }
 
 - (instancetype)initWithPhoto:(id <NYTPhoto>)photo loadingView:(UIView*)loadingView notificationCenter:(NSNotificationCenter*)notificationCenter {
@@ -119,7 +121,7 @@ NSString* const NYTPhotoViewControllerPhotoImageUpdatedNotification = @"NYTPhoto
         }
 
         if (assingLoading) {
-            [self loadImageAtItem:(IAWGalleryItem*)photo];
+            [self loadImageAtItem:photo];
         }
 
         _notificationCenter = notificationCenter;

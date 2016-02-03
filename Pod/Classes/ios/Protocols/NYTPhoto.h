@@ -36,4 +36,9 @@
  */
 @property (nonatomic, readonly) NSAttributedString *attributedCaptionCredit;
 
+
+@property (nonatomic, readonly) NSString *urlThumbString;
+
+@property (nonatomic, readonly) NSString *urlImageString;
+
 @end

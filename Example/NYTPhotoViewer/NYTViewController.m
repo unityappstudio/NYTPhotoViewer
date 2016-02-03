@@ -26,8 +26,7 @@ static const NSUInteger NYTViewControllerNoReferenceViewPhotoIndex = 4;
 - (IBAction)imageButtonTapped:(id)sender {
     self.photos = [[self class] newTestPhotos];
     
-    NYTPhotosViewController *photosViewController = [[NYTPhotosViewController alloc] initWithPhotos:self.photos];
-    photosViewController.delegate = self;
+    NYTPhotosViewController *photosViewController = [[NYTPhotosViewController alloc] initWithPhotos:self.photos andDelegate:self];
     [self presentViewController:photosViewController animated:YES completion:nil];
     
     [self updateImagesOnPhotosViewController:photosViewController afterDelayWithPhotos:self.photos];

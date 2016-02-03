@@ -64,7 +64,7 @@
     self.navigationBar.translucent = YES;
 
 
-    self.navigationItem      = [[UINavigationItem alloc] initWithTitle:EMPTY_STRING];
+    self.navigationItem      = [[UINavigationItem alloc] initWithTitle:@""];
     self.navigationBar.items = @[self.navigationItem];
 
     [self addSubview:self.navigationBar];

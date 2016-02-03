@@ -238,7 +238,7 @@ static const UIEdgeInsets NYTPhotosViewControllerCloseButtinImageInsets = {3, 0,
 
     NSString* overlayTitle;
     if (self.dataSource.numberOfPhotos > 1) {
-        overlayTitle = [NSString localizedStringWithFormat:LocalizedString(@"%lu of %lu"), (unsigned long)displayIndex, (unsigned long)self.dataSource.numberOfPhotos];
+        overlayTitle = [NSString localizedStringWithFormat:@"%lu of %lu", (unsigned long)displayIndex, (unsigned long)self.dataSource.numberOfPhotos];
     }
 
     self.overlayView.title = overlayTitle;
