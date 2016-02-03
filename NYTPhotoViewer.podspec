@@ -17,4 +17,5 @@ Pod::Spec.new do |s|
   s.resources = 'Pod/Assets/**/*'
 
   s.frameworks = 'UIKit', 'Foundation'
+  s.dependency	'SDWebImage'
 end
