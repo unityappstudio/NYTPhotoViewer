@@ -6,34 +6,35 @@
 //  Copyright (c) 2015 NYTimes. All rights reserved.
 //
 
-@import UIKit;
-
 @class NYTPhotosOverlayView;
 
 @protocol NYTPhoto;
 @protocol NYTPhotosViewControllerDelegate;
+@protocol NYTPhotosViewControllerDataSource;
 
 // All notifications will have the `NYTPhotosViewController` instance set as the object.
-extern NSString * const NYTPhotosViewControllerDidDisplayPhotoNotification;
-extern NSString * const NYTPhotosViewControllerWillDismissNotification;
-extern NSString * const NYTPhotosViewControllerDidDismissNotification;
+extern NSString* const NYTPhotosViewControllerDidDisplayPhotoNotification;
+extern NSString* const NYTPhotosViewControllerWillDismissNotification;
+extern NSString* const NYTPhotosViewControllerDidDismissNotification;
 
 @interface NYTPhotosViewController : UIViewController
+
+@property (nonatomic) id <NYTPhotosViewControllerDataSource> dataSource;
 
 /**
  *  The pan gesture recognizer used for panning to dismiss the photo. Disable to stop the pan-to-dismiss behavior.
  */
-@property (nonatomic, readonly) UIPanGestureRecognizer *panGestureRecognizer;
+@property (nonatomic, readonly) UIPanGestureRecognizer* panGestureRecognizer;
 
 /**
  *  The tap gesture recognizer used to hide the overlay, including the caption, left and right bar button items, and title, all at once. Disable to always show the overlay.
  */
-@property (nonatomic, readonly) UITapGestureRecognizer *singleTapGestureRecognizer;
+@property (nonatomic, readonly) UITapGestureRecognizer* singleTapGestureRecognizer;
 
 /**
  *  The internal page view controller used for swiping horizontally, photo to photo.
  */
-@property (nonatomic, readonly) UIPageViewController *pageViewController;
+@property (nonatomic, readonly) UIPageViewController* pageViewController;
 
 /**
  *  The object conforming to `NYTPhoto` that is currently being displayed.
@@ -43,17 +44,17 @@ extern NSString * const NYTPhotosViewControllerDidDismissNotification;
 /**
  *  The overlay view displayed over photos. Created during `viewDidLoad`.
  */
-@property (nonatomic, readonly) NYTPhotosOverlayView *overlayView;
+@property (nonatomic, readonly) NYTPhotosOverlayView* overlayView;
 
 /**
  *  The left bar button item overlaying the photo.
  */
-@property (nonatomic) UIBarButtonItem *leftBarButtonItem;
+@property (nonatomic) UIBarButtonItem* leftBarButtonItem;
 
 /**
  *  The right bar button item overlaying the photo.
  */
-@property (nonatomic) UIBarButtonItem *rightBarButtonItem;
+@property (nonatomic) UIBarButtonItem* rightBarButtonItem;
 
 /**
  *  The object that acts as the delegate of the `NYTPhotosViewController`.
@@ -67,7 +68,7 @@ extern NSString * const NYTPhotosViewControllerDidDismissNotification;
  *
  *  @return A fully initialized object.
  */
-- (instancetype)initWithPhotos:(NSArray *)photos;
+- (instancetype)initWithPhotos:(NSArray*)photos andDelegate:(id<NYTPhotosViewControllerDelegate>) delegate ;
 
 /**
  *  The designated initializer that stores the array of objects conforming to the `NYTPhoto` protocol for display, along with specifying an initial photo for display.
@@ -77,7 +78,11 @@ extern NSString * const NYTPhotosViewControllerDidDismissNotification;
  *
  *  @return A fully initialized object.
  */
-- (instancetype)initWithPhotos:(NSArray *)photos initialPhoto:(id <NYTPhoto>)initialPhoto NS_DESIGNATED_INITIALIZER;
+- (instancetype)initWithPhotos:(NSArray*)photos assignLoadImage:(BOOL)isAssignLoading andDelegate:(id<NYTPhotosViewControllerDelegate>) delegate;
+
+- (instancetype)initWithPhotos:(NSArray*)photos initialPhoto:(id <NYTPhoto> )initialPhoto andDelegate:(id<NYTPhotosViewControllerDelegate>) delegate;
+
+- (instancetype)initWithPhotos:(NSArray*)photos initialPhoto:(id <NYTPhoto>)initialPhoto assignLoadImage:(BOOL)isAssignLoading andDelegate:(id<NYTPhotosViewControllerDelegate>) delegate NS_DESIGNATED_INITIALIZER;
 
 /**
  *  Displays the specified photo. Can be called before the view controller is displayed. Calling with a photo not contained within the data source has no effect.
@@ -85,14 +90,16 @@ extern NSString * const NYTPhotosViewControllerDidDismissNotification;
  *  @param photo    The photo to make the currently displayed photo.
  *  @param animated Whether to animate the transition to the new photo.
  */
-- (void)displayPhoto:(id <NYTPhoto>)photo animated:(BOOL)animated;
+- (void)displayPhoto:(id <NYTPhoto> )photo animated:(BOOL)animated;
 
 /**
  *  Update the image displayed for the given photo object.
  *
  *  @param photo The photo for which to display the new image.
  */
-- (void)updateImageForPhoto:(id <NYTPhoto>)photo;
+- (void)updateImageForPhoto:(id <NYTPhoto> )photo;
+
+- (void)dismissViewController;
 
 @end
 
@@ -110,21 +117,21 @@ extern NSString * const NYTPhotosViewControllerDidDismissNotification;
  *  @param photo                The photo object that was just displayed.
  *  @param photoIndex           The index of the photo that was just displayed.
  */
-- (void)photosViewController:(NYTPhotosViewController *)photosViewController didDisplayPhoto:(id <NYTPhoto>)photo atIndex:(NSUInteger)photoIndex;
+- (void)photosViewController:(NYTPhotosViewController*)photosViewController didDisplayPhoto:(id <NYTPhoto> )photo atIndex:(NSUInteger)photoIndex;
 
 /**
  *  Called immediately before the photos view controller is about to start dismissal. This will be the beginning of the interactive panning to dismiss, if it is enabled and performed.
  *
  *  @param photosViewController The `NYTPhotosViewController` instance that sent the delegate message.
  */
-- (void)photosViewControllerWillDismiss:(NYTPhotosViewController *)photosViewController;
+- (void)photosViewControllerWillDismiss:(NYTPhotosViewController*)photosViewController;
 
 /**
  *  Called immediately after the photos view controller has dismissed.
  *
  *  @param photosViewController The `NYTPhotosViewController` instance that sent the delegate message.
  */
-- (void)photosViewControllerDidDismiss:(NYTPhotosViewController *)photosViewController;
+- (void)photosViewControllerDidDismiss:(NYTPhotosViewController*)photosViewController;
 
 /**
  *  Returns a view to display over a photo, full width, locked to the bottom, representing the caption for the photo. Can be any `UIView` object, but is expected to respond to `intrinsicContentSize` appropriately to calculate height.
@@ -134,7 +141,7 @@ extern NSString * const NYTPhotosViewControllerDidDismissNotification;
  *
  *  @return A view to display as the caption for the photo. Return `nil` to show a default view generated from the caption properties on the photo object.
  */
-- (UIView *)photosViewController:(NYTPhotosViewController *)photosViewController captionViewForPhoto:(id <NYTPhoto>)photo;
+- (UIView*)photosViewController:(NYTPhotosViewController*)photosViewController captionViewForPhoto:(id <NYTPhoto> )photo;
 
 /**
  *  Returns a view to display while a photo is loading. Can be any `UIView` object, but is expected to respond to `sizeToFit` appropriately. This view will be sized and centered in the blank area, and hidden when the photo image is loaded.
@@ -144,7 +151,7 @@ extern NSString * const NYTPhotosViewControllerDidDismissNotification;
  *
  *  @return A view to display while the photo is loading. Return `nil` to show a default white `UIActivityIndicatorView`.
  */
-- (UIView *)photosViewController:(NYTPhotosViewController *)photosViewController loadingViewForPhoto:(id <NYTPhoto>)photo;
+- (UIView*)photosViewController:(NYTPhotosViewController*)photosViewController loadingViewForPhoto:(id <NYTPhoto> )photo;
 
 /**
  *  Returns the view from which to animate for a given object conforming to the `NYTPhoto` protocol.
@@ -154,7 +161,7 @@ extern NSString * const NYTPhotosViewControllerDidDismissNotification;
  *
  *  @return The view to animate out of or into for the given photo.
  */
-- (UIView *)photosViewController:(NYTPhotosViewController *)photosViewController referenceViewForPhoto:(id <NYTPhoto>)photo;
+- (UIView*)photosViewController:(NYTPhotosViewController*)photosViewController referenceViewForPhoto:(id <NYTPhoto> )photo;
 
 /**
  *  Called when a photo is long pressed.
@@ -165,7 +172,7 @@ extern NSString * const NYTPhotosViewControllerDidDismissNotification;
  *
  *  @return `YES` if the long press was handled by the client, `NO` if the default `UIMenuController` with a Copy action is desired.
  */
-- (BOOL)photosViewController:(NYTPhotosViewController *)photosViewController handleLongPressForPhoto:(id <NYTPhoto>)photo withGestureRecognizer:(UILongPressGestureRecognizer *)longPressGestureRecognizer;
+- (BOOL)photosViewController:(NYTPhotosViewController*)photosViewController handleLongPressForPhoto:(id <NYTPhoto> )photo withGestureRecognizer:(UILongPressGestureRecognizer*)longPressGestureRecognizer;
 
 /**
  *  Called when the action button is tapped.
@@ -175,7 +182,7 @@ extern NSString * const NYTPhotosViewControllerDidDismissNotification;
  *
  *  @return `YES` if the action button tap was handled by the client, `NO` if the default `UIActivityViewController` is desired.
  */
-- (BOOL)photosViewController:(NYTPhotosViewController *)photosViewController handleActionButtonTappedForPhoto:(id <NYTPhoto>)photo;
+- (BOOL)photosViewController:(NYTPhotosViewController*)photosViewController handleActionButtonTappedForPhoto:(id <NYTPhoto> )photo;
 
 /**
  *  Called after the default `UIActivityViewController` is presented and successfully completes an action with a specified activity type.
@@ -183,6 +190,6 @@ extern NSString * const NYTPhotosViewControllerDidDismissNotification;
  *  @param photosViewController The `NYTPhotosViewController` instance that sent the delegate message.
  *  @param activityType         The activity type that was successfully shared.
  */
-- (void)photosViewController:(NYTPhotosViewController *)photosViewController actionCompletedWithActivityType:(NSString *)activityType;
+- (void)photosViewController:(NYTPhotosViewController*)photosViewController actionCompletedWithActivityType:(NSString*)activityType;
 
 @end

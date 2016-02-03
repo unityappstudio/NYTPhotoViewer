@@ -6,7 +6,7 @@
 //
 //
 
-@import UIKit;
+#import <UIKit/UIKit.h>
 
 /**
  *  An object that manages both animated transitions and interactive transitions, acting as the transitioning delegate and internally coordinating multiple objects that do the animating and interactivity work.

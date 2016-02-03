@@ -6,8 +6,6 @@
 //  Copyright (c) 2015 NYTimes. All rights reserved.
 //
 
-@import UIKit;
-
 /**
  *  The model for photos displayed in an `NYTPhotosViewController`.
  */

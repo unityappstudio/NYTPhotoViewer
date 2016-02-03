@@ -8,52 +8,57 @@
 
 #import "NYTPhotosViewController.h"
 #import "NYTPhotosViewControllerDataSource.h"
-#import "NYTPhotosDataSource.h"
 #import "NYTPhotoViewController.h"
+#import "NYTPhotosDataSource.h"
 #import "NYTPhotoTransitionController.h"
 #import "NYTScalingImageView.h"
 #import "NYTPhoto.h"
 #import "NYTPhotosOverlayView.h"
 #import "NYTPhotoCaptionView.h"
 
-NSString * const NYTPhotosViewControllerDidDisplayPhotoNotification = @"NYTPhotosViewControllerDidDisplayPhotoNotification";
-NSString * const NYTPhotosViewControllerWillDismissNotification = @"NYTPhotosViewControllerWillDismissNotification";
-NSString * const NYTPhotosViewControllerDidDismissNotification = @"NYTPhotosViewControllerDidDismissNotification";
+NSString* const NYTPhotosViewControllerDidDisplayPhotoNotification = @"NYTPhotosViewControllerDidDisplayPhotoNotification";
+NSString* const NYTPhotosViewControllerWillDismissNotification     = @"NYTPhotosViewControllerWillDismissNotification";
+NSString* const NYTPhotosViewControllerDidDismissNotification      = @"NYTPhotosViewControllerDidDismissNotification";
 
-static const CGFloat NYTPhotosViewControllerOverlayAnimationDuration = 0.2;
-static const CGFloat NYTPhotosViewControllerInterPhotoSpacing = 16.0;
+static const CGFloat NYTPhotosViewControllerOverlayAnimationDuration    = 0.2;
+static const CGFloat NYTPhotosViewControllerInterPhotoSpacing           = 16.0;
 static const UIEdgeInsets NYTPhotosViewControllerCloseButtinImageInsets = {3, 0, -3, 0};
 
-@interface NYTPhotosViewController () <UIPageViewControllerDataSource, UIPageViewControllerDelegate, NYTPhotoViewControllerDelegate>
+@interface NYTPhotosViewController () <UIPageViewControllerDataSource, UIPageViewControllerDelegate, UIGestureRecognizerDelegate, NYTPhotoViewControllerDelegate>
 
-@property (nonatomic) id <NYTPhotosViewControllerDataSource> dataSource;
-@property (nonatomic) UIPageViewController *pageViewController;
-@property (nonatomic) NYTPhotoTransitionController *transitionController;
+@property (nonatomic) UIPageViewController* pageViewController;
+@property (nonatomic) NYTPhotoTransitionController* transitionController;
 
-@property (nonatomic) UIPanGestureRecognizer *panGestureRecognizer;
-@property (nonatomic) UITapGestureRecognizer *singleTapGestureRecognizer;
+@property (nonatomic) UIPanGestureRecognizer* panGestureRecognizer;
+@property (nonatomic) UITapGestureRecognizer* singleTapGestureRecognizer;
 
-@property (nonatomic) NYTPhotosOverlayView *overlayView;
+@property (nonatomic) NYTPhotosOverlayView* overlayView;
+@property (nonatomic, assign) BOOL isAssignLoading;
 
 /// A custom notification center to scope internal notifications to this `NYTPhotosViewController` instance.
-@property (nonatomic) NSNotificationCenter *notificationCenter;
+@property (nonatomic) NSNotificationCenter* notificationCenter;
 
 @property (nonatomic) BOOL shouldHandleLongPress;
 @property (nonatomic) BOOL overlayWasHiddenBeforeTransition;
 
-@property (nonatomic, readonly) NYTPhotoViewController *currentPhotoViewController;
-@property (nonatomic, readonly) UIView *referenceViewForCurrentPhoto;
+@property (nonatomic, readonly) NYTPhotoViewController* currentPhotoViewController;
+@property (nonatomic, readonly) UIView* referenceViewForCurrentPhoto;
 @property (nonatomic, readonly) CGPoint boundsCenterPoint;
 
 @end
 
 @implementation NYTPhotosViewController
 
+- (instancetype)initWithCoder:(NSCoder*)coder {
+    @throw [NSException exceptionWithName:@"NYTPhotosViewController" reason:@"Call initWithPhotos: instead." userInfo:nil];
+    return [self initWithPhotos:nil andDelegate:nil];
+}
+
 #pragma mark - NSObject
 
 - (void)dealloc {
     _pageViewController.dataSource = nil;
-    _pageViewController.delegate = nil;
+    _pageViewController.delegate   = nil;
 }
 
 #pragma mark - NSObject(UIResponderStandardEditActions)
@@ -72,52 +77,59 @@ static const UIEdgeInsets NYTPhotosViewControllerCloseButtinImageInsets = {3, 0,
     if (self.shouldHandleLongPress && action == @selector(copy:) && self.currentlyDisplayedPhoto.image) {
         return YES;
     }
-    
+
     return NO;
 }
 
 #pragma mark - UIViewController
 
-- (instancetype)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil {
-    return [self initWithPhotos:nil];
+- (instancetype)initWithNibName:(NSString*)nibNameOrNil bundle:(NSBundle*)nibBundleOrNil {
+    return [self initWithPhotos:nil andDelegate:nil];
 }
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    
-    self.view.tintColor = [UIColor whiteColor];
-    self.view.backgroundColor = [UIColor blackColor];
+
+    self.view.tintColor                          = [UIColor whiteColor];
+    self.view.backgroundColor                    = [UIColor blackColor];
     self.pageViewController.view.backgroundColor = [UIColor clearColor];
-    
+
     [self addChildViewController:self.pageViewController];
     [self.view addSubview:self.pageViewController.view];
     [self.pageViewController didMoveToParentViewController:self];
-    
-    [self addOverlayView];
-    
+
+//    [self addOverlayView];
+
     self.transitionController.startingView = self.referenceViewForCurrentPhoto;
-    
-    UIView *endingView;
+
+    UIView* endingView;
     if (self.currentlyDisplayedPhoto.image || self.currentlyDisplayedPhoto.placeholderImage) {
         endingView = self.currentPhotoViewController.scalingImageView.imageView;
     }
-    
+
     self.transitionController.endingView = endingView;
+}
+
+- (void)viewWillDisappear:(BOOL)animated {
+    [super viewWillDisappear:animated];
+    [[UIApplication sharedApplication] setStatusBarHidden:NO withAnimation:UIStatusBarAnimationNone];
 }
 
 - (void)viewDidAppear:(BOOL)animated {
     [super viewDidAppear:animated];
-    
+
     if (!self.overlayWasHiddenBeforeTransition) {
         [self setOverlayViewHidden:NO animated:YES];
     }
+
+    [[UIApplication sharedApplication] setStatusBarHidden:YES withAnimation:UIStatusBarAnimationNone];
 }
 
 - (void)viewWillLayoutSubviews {
     [super viewWillLayoutSubviews];
-    
+
     self.pageViewController.view.frame = self.view.bounds;
-    self.overlayView.frame = self.view.bounds;
+    self.overlayView.frame             = self.view.bounds;
 }
 
 - (BOOL)prefersStatusBarHidden {
@@ -130,93 +142,123 @@ static const UIEdgeInsets NYTPhotosViewControllerCloseButtinImageInsets = {3, 0,
 
 #pragma mark - NYTPhotosViewController
 
-- (instancetype)initWithPhotos:(NSArray *)photos {
-    return [self initWithPhotos:photos initialPhoto:photos.firstObject];
+- (instancetype)initWithPhotos:(NSArray*)photos andDelegate:(id<NYTPhotosViewControllerDelegate>)delegate {
+    return [self initWithPhotos:photos initialPhoto:photos.firstObject assignLoadImage:NO andDelegate:delegate];
 }
 
-- (instancetype)initWithPhotos:(NSArray *)photos initialPhoto:(id <NYTPhoto>)initialPhoto {
+- (instancetype)initWithPhotos:(NSArray*)photos assignLoadImage:(BOOL)isAssignLoading andDelegate:(id<NYTPhotosViewControllerDelegate>)delegate {
+    return [self initWithPhotos:photos initialPhoto:photos.firstObject assignLoadImage:isAssignLoading andDelegate:delegate];
+}
+
+- (instancetype)initWithPhotos:(NSArray*)photos initialPhoto:(id <NYTPhoto>)initialPhoto andDelegate:(id<NYTPhotosViewControllerDelegate>)delegate {
+    return [self initWithPhotos:photos initialPhoto:photos.firstObject assignLoadImage:NO andDelegate:delegate];
+}
+
+- (instancetype)initWithPhotos:(NSArray*)photos initialPhoto:(id <NYTPhoto>)initialPhoto assignLoadImage:(BOOL)isAssignLoading andDelegate:(id<NYTPhotosViewControllerDelegate>)delegate {
     self = [super initWithNibName:nil bundle:nil];
-    
+
     if (self) {
-        _dataSource = [[NYTPhotosDataSource alloc] initWithPhotos:photos];
-        _panGestureRecognizer = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(didPanWithGestureRecognizer:)];
-        _singleTapGestureRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(didSingleTapWithGestureRecognizer:)];
-        
-        _transitionController = [[NYTPhotoTransitionController alloc] init];
-        self.modalPresentationStyle = UIModalPresentationCustom;
-        self.transitioningDelegate = _transitionController;
+        self.isAssignLoading = isAssignLoading;
+        self.delegate        = delegate;
+
+        _dataSource                          = [[NYTPhotosDataSource alloc] initWithPhotos:photos];
+        _panGestureRecognizer                = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(didPanWithGestureRecognizer:)];
+        _singleTapGestureRecognizer          = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(didSingleTapWithGestureRecognizer:)];
+        _singleTapGestureRecognizer.delegate = self;
+
+
+        _transitionController                             = [[NYTPhotoTransitionController alloc] init];
+        self.modalPresentationStyle                       = UIModalPresentationCustom;
+        self.transitioningDelegate                        = _transitionController;
         self.modalPresentationCapturesStatusBarAppearance = YES;
-        
+
         // iOS 7 has an issue with constraints that could evaluate to be negative, so we set the width to the margins' size.
-        _overlayView = [[NYTPhotosOverlayView alloc] initWithFrame:CGRectMake(0, 0, NYTPhotoCaptionViewHorizontalMargin * 2.0, 0)];
-        _overlayView.leftBarButtonItem = [[UIBarButtonItem alloc] initWithImage:[UIImage imageNamed:@"NYTPhotoViewerCloseButtonX"] landscapeImagePhone:[UIImage imageNamed:@"NYTPhotoViewerCloseButtonXLandscape"] style:UIBarButtonItemStylePlain target:self action:@selector(doneButtonTapped:)];
+        _overlayView                               = [[NYTPhotosOverlayView alloc] initWithFrame:CGRectMake(0, 0, NYTPhotoCaptionViewHorizontalMargin * 2.0, 0)];
+        _overlayView.leftBarButtonItem             = [[UIBarButtonItem alloc] initWithImage:[UIImage imageNamed:@"NYTPhotoViewerCloseButtonX"] landscapeImagePhone:[UIImage imageNamed:@"NYTPhotoViewerCloseButtonXLandscape"] style:UIBarButtonItemStylePlain target:self action:@selector(doneButtonTapped:)];
         _overlayView.leftBarButtonItem.imageInsets = NYTPhotosViewControllerCloseButtinImageInsets;
-        _overlayView.rightBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemAction target:self action:@selector(actionButtonTapped:)];
-        
+        _overlayView.rightBarButtonItem            = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemAction target:self action:@selector(actionButtonTapped:)];
+
         _notificationCenter = [[NSNotificationCenter alloc] init];
-        
+
         [self setupPageViewControllerWithInitialPhoto:initialPhoto];
     }
-    
+
     return self;
 }
 
 - (void)setupPageViewControllerWithInitialPhoto:(id <NYTPhoto>)initialPhoto {
-    self.pageViewController = [[UIPageViewController alloc] initWithTransitionStyle:UIPageViewControllerTransitionStyleScroll navigationOrientation:UIPageViewControllerNavigationOrientationHorizontal options:@{UIPageViewControllerOptionInterPageSpacingKey: @(NYTPhotosViewControllerInterPhotoSpacing)}];
-    
-    self.pageViewController.delegate = self;
+    self.pageViewController = [[UIPageViewController alloc] initWithTransitionStyle:UIPageViewControllerTransitionStyleScroll
+                                                              navigationOrientation:UIPageViewControllerNavigationOrientationHorizontal
+                                                                            options:@{UIPageViewControllerOptionInterPageSpacingKey: @(NYTPhotosViewControllerInterPhotoSpacing)}];
+
+    self.pageViewController.delegate   = self;
     self.pageViewController.dataSource = self;
-    
-    NYTPhotoViewController *initialPhotoViewController;
-    
+
+    NYTPhotoViewController* initialPhotoViewController;
+
     if ([self.dataSource containsPhoto:initialPhoto]) {
         initialPhotoViewController = [self newPhotoViewControllerForPhoto:initialPhoto];
-    }
-    else {
+    } else {
         initialPhotoViewController = [self newPhotoViewControllerForPhoto:self.dataSource[0]];
     }
-    
+
     [self setCurrentlyDisplayedViewController:initialPhotoViewController animated:NO];
-    
+
     [self.pageViewController.view addGestureRecognizer:self.panGestureRecognizer];
     [self.pageViewController.view addGestureRecognizer:self.singleTapGestureRecognizer];
 }
 
 - (void)addOverlayView {
-    UIColor *textColor = self.view.tintColor ?: [UIColor whiteColor];
+    UIColor* textColor = self.view.tintColor ? : [UIColor whiteColor];
     self.overlayView.titleTextAttributes = @{NSForegroundColorAttributeName: textColor};
-    
+
     [self updateOverlayInformation];
     [self.view addSubview:self.overlayView];
-    
+
+    [self setOverlayViewHidden:YES animated:NO];
+}
+
+- (void)addOverlayViewFrom:(UIView*)view {
+    UIColor* textColor = self.view.tintColor ? : [UIColor whiteColor];
+    self.overlayView.titleTextAttributes = @{NSForegroundColorAttributeName: textColor};
+
+    [self updateOverlayInformation];
+    [view addSubview:self.overlayView];
+
     [self setOverlayViewHidden:YES animated:NO];
 }
 
 - (void)updateOverlayInformation {
     NSUInteger displayIndex = 1;
-    
+
     NSUInteger photoIndex = [self.dataSource indexOfPhoto:self.currentlyDisplayedPhoto];
     if (photoIndex < self.dataSource.numberOfPhotos) {
         displayIndex = photoIndex + 1;
     }
-    
-    NSString *overlayTitle;
+
+    NSString* overlayTitle;
     if (self.dataSource.numberOfPhotos > 1) {
-        overlayTitle = [NSString localizedStringWithFormat:NSLocalizedString(@"%lu of %lu", nil), (unsigned long)displayIndex, (unsigned long)self.dataSource.numberOfPhotos];
+        overlayTitle = [NSString localizedStringWithFormat:LocalizedString(@"%lu of %lu"), (unsigned long)displayIndex, (unsigned long)self.dataSource.numberOfPhotos];
     }
-    
+
     self.overlayView.title = overlayTitle;
-    
-    UIView *captionView;
+
+    UIView* captionView;
     if ([self.delegate respondsToSelector:@selector(photosViewController:captionViewForPhoto:)]) {
         captionView = [self.delegate photosViewController:self captionViewForPhoto:self.currentlyDisplayedPhoto];
     }
-    
+
     if (!captionView) {
         captionView = [[NYTPhotoCaptionView alloc] initWithAttributedTitle:self.currentlyDisplayedPhoto.attributedCaptionTitle attributedSummary:self.currentlyDisplayedPhoto.attributedCaptionSummary attributedCredit:self.currentlyDisplayedPhoto.attributedCaptionCredit];
     }
-    
+
     self.overlayView.captionView = captionView;
+}
+
+- (void)dismissViewController {
+    self.transitionController.forcesNonInteractiveDismissal = YES;
+    [self setOverlayViewHidden:YES animated:NO];
+    [self dismissAnimated:YES];
 }
 
 - (void)doneButtonTapped:(id)sender {
@@ -227,36 +269,45 @@ static const UIEdgeInsets NYTPhotosViewControllerCloseButtinImageInsets = {3, 0,
 
 - (void)actionButtonTapped:(id)sender {
     BOOL clientDidHandle = NO;
-    
+
     if ([self.delegate respondsToSelector:@selector(photosViewController:handleActionButtonTappedForPhoto:)]) {
         clientDidHandle = [self.delegate photosViewController:self handleActionButtonTappedForPhoto:self.currentlyDisplayedPhoto];
     }
-    
+
     if (!clientDidHandle && self.currentlyDisplayedPhoto.image) {
-        UIActivityViewController *activityViewController = [[UIActivityViewController alloc] initWithActivityItems:@[self.currentlyDisplayedPhoto.image] applicationActivities:nil];
-        activityViewController.completionHandler = ^(NSString *activityType, BOOL completed) {
+        UIActivityViewController* activityViewController = [[UIActivityViewController alloc] initWithActivityItems:@[self.currentlyDisplayedPhoto.image] applicationActivities:nil];
+        activityViewController.completionHandler = ^(NSString* activityType, BOOL completed) {
             if (completed && [self.delegate respondsToSelector:@selector(photosViewController:actionCompletedWithActivityType:)]) {
                 [self.delegate photosViewController:self actionCompletedWithActivityType:activityType];
             }
         };
-        
-        [self presentViewController:activityViewController animated:YES completion:nil];
+
+        [self displayActivityViewController:activityViewController animated:YES];
     }
 }
 
-- (UIBarButtonItem *)leftBarButtonItem {
+- (void)displayActivityViewController:(UIActivityViewController*)controller animated:(BOOL)animated {
+    if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPhone) {
+        [self presentViewController:controller animated:animated completion:nil];
+    } else {
+        UIPopoverController *popup = [[UIPopoverController alloc] initWithContentViewController:controller];
+        [popup presentPopoverFromBarButtonItem:self.rightBarButtonItem permittedArrowDirections:UIPopoverArrowDirectionAny animated:YES];
+    }
+}
+
+- (UIBarButtonItem*)leftBarButtonItem {
     return self.overlayView.leftBarButtonItem;
 }
 
-- (void)setLeftBarButtonItem:(UIBarButtonItem *)leftBarButtonItem {
+- (void)setLeftBarButtonItem:(UIBarButtonItem*)leftBarButtonItem {
     self.overlayView.leftBarButtonItem = leftBarButtonItem;
 }
 
-- (UIBarButtonItem *)rightBarButtonItem {
+- (UIBarButtonItem*)rightBarButtonItem {
     return self.overlayView.rightBarButtonItem;
 }
 
-- (void)setRightBarButtonItem:(UIBarButtonItem *)rightBarButtonItem {
+- (void)setRightBarButtonItem:(UIBarButtonItem*)rightBarButtonItem {
     self.overlayView.rightBarButtonItem = rightBarButtonItem;
 }
 
@@ -264,8 +315,8 @@ static const UIEdgeInsets NYTPhotosViewControllerCloseButtinImageInsets = {3, 0,
     if (![self.dataSource containsPhoto:photo]) {
         return;
     }
-    
-    NYTPhotoViewController *photoViewController = [self newPhotoViewControllerForPhoto:photo];
+
+    NYTPhotoViewController* photoViewController = [self newPhotoViewControllerForPhoto:photo];
     [self setCurrentlyDisplayedViewController:photoViewController animated:animated];
 }
 
@@ -275,48 +326,47 @@ static const UIEdgeInsets NYTPhotosViewControllerCloseButtinImageInsets = {3, 0,
 
 #pragma mark - Gesture Recognizers
 
-- (void)didSingleTapWithGestureRecognizer:(UITapGestureRecognizer *)tapGestureRecognizer {
+- (void)didSingleTapWithGestureRecognizer:(UITapGestureRecognizer*)tapGestureRecognizer {
     [self setOverlayViewHidden:!self.overlayView.hidden animated:YES];
 }
 
-- (void)didPanWithGestureRecognizer:(UIPanGestureRecognizer *)panGestureRecognizer {
+- (void)didPanWithGestureRecognizer:(UIPanGestureRecognizer*)panGestureRecognizer {
     if (panGestureRecognizer.state == UIGestureRecognizerStateBegan) {
         self.overlayWasHiddenBeforeTransition = self.overlayView.hidden;
         [self setOverlayViewHidden:YES animated:YES];
         [self dismissAnimated:YES];
-    }
-    else {
+    } else {
         [self.transitionController didPanWithPanGestureRecognizer:panGestureRecognizer viewToPan:self.pageViewController.view anchorPoint:self.boundsCenterPoint];
     }
 }
 
 - (void)dismissAnimated:(BOOL)animated {
-    UIView *startingView;
+    UIView* startingView;
     if (self.currentlyDisplayedPhoto.image || self.currentlyDisplayedPhoto.placeholderImage) {
         startingView = self.currentPhotoViewController.scalingImageView.imageView;
     }
-    
+
     self.transitionController.startingView = startingView;
-    self.transitionController.endingView = self.referenceViewForCurrentPhoto;
-    
+    self.transitionController.endingView   = self.referenceViewForCurrentPhoto;
+
     if ([self.delegate respondsToSelector:@selector(photosViewControllerWillDismiss:)]) {
         [self.delegate photosViewControllerWillDismiss:self];
     }
-    
+
     [[NSNotificationCenter defaultCenter] postNotificationName:NYTPhotosViewControllerWillDismissNotification object:self];
-    
+
     [self dismissViewControllerAnimated:animated completion:^{
         BOOL isStillOnscreen = self.view.window != nil; // Happens when the dismissal is canceled.
-        
+
         if (isStillOnscreen && !self.overlayWasHiddenBeforeTransition) {
             [self setOverlayViewHidden:NO animated:YES];
         }
-        
+
         if (!isStillOnscreen) {
             if ([self.delegate respondsToSelector:@selector(photosViewControllerDidDismiss:)]) {
                 [self.delegate photosViewControllerDidDismiss:self];
             }
-            
+
             [[NSNotificationCenter defaultCenter] postNotificationName:NYTPhotosViewControllerDidDismissNotification object:self];
         }
     }];
@@ -324,50 +374,50 @@ static const UIEdgeInsets NYTPhotosViewControllerCloseButtinImageInsets = {3, 0,
 
 #pragma mark - Convenience
 
-- (void)setCurrentlyDisplayedViewController:(UIViewController <NYTPhotoContainer> *)viewController animated:(BOOL)animated {
+- (void)setCurrentlyDisplayedViewController:(UIViewController <NYTPhotoContainer>*)viewController animated:(BOOL)animated {
     if (!viewController) {
         return;
     }
-    
     [self.pageViewController setViewControllers:@[viewController] direction:UIPageViewControllerNavigationDirectionForward animated:animated completion:nil];
+    [self addOverlayViewFrom:viewController.view];
 }
 
 - (void)setOverlayViewHidden:(BOOL)hidden animated:(BOOL)animated {
     if (hidden == self.overlayView.hidden) {
         return;
     }
-    
+
     if (animated) {
         self.overlayView.hidden = NO;
-        
+
         self.overlayView.alpha = hidden ? 1.0 : 0.0;
-        
+
         [UIView animateWithDuration:NYTPhotosViewControllerOverlayAnimationDuration delay:0.0 options:UIViewAnimationOptionCurveEaseInOut | UIViewAnimationOptionAllowAnimatedContent | UIViewAnimationOptionAllowUserInteraction animations:^{
             self.overlayView.alpha = hidden ? 0.0 : 1.0;
         } completion:^(BOOL finished) {
             self.overlayView.alpha = 1.0;
             self.overlayView.hidden = hidden;
         }];
-    }
-    else {
+    } else {
         self.overlayView.hidden = hidden;
     }
 }
 
-- (NYTPhotoViewController *)newPhotoViewControllerForPhoto:(id <NYTPhoto>)photo {
+- (NYTPhotoViewController*)newPhotoViewControllerForPhoto:(id <NYTPhoto>)photo {
     if (photo) {
-        UIView *loadingView;
+        UIView* loadingView;
         if ([self.delegate respondsToSelector:@selector(photosViewController:loadingViewForPhoto:)]) {
             loadingView = [self.delegate photosViewController:self loadingViewForPhoto:photo];
         }
-        
-        NYTPhotoViewController *photoViewController = [[NYTPhotoViewController alloc] initWithPhoto:photo loadingView:loadingView notificationCenter:self.notificationCenter];
+
+        NYTPhotoViewController* photoViewController = [[NYTPhotoViewController alloc] initWithPhoto:photo loadingView:loadingView assignLoadImage:self.isAssignLoading notificationCenter:self.notificationCenter];
         photoViewController.delegate = self;
+
         [self.singleTapGestureRecognizer requireGestureRecognizerToFail:photoViewController.doubleTapGestureRecognizer];
-        
+
         return photoViewController;
     }
-    
+
     return nil;
 }
 
@@ -375,7 +425,7 @@ static const UIEdgeInsets NYTPhotosViewControllerCloseButtinImageInsets = {3, 0,
     if ([self.delegate respondsToSelector:@selector(photosViewController:didDisplayPhoto:atIndex:)]) {
         [self.delegate photosViewController:self didDisplayPhoto:photo atIndex:[self.dataSource indexOfPhoto:photo]];
     }
-    
+
     [[NSNotificationCenter defaultCenter] postNotificationName:NYTPhotosViewControllerDidDisplayPhotoNotification object:self];
 }
 
@@ -383,15 +433,15 @@ static const UIEdgeInsets NYTPhotosViewControllerCloseButtinImageInsets = {3, 0,
     return self.currentPhotoViewController.photo;
 }
 
-- (NYTPhotoViewController *)currentPhotoViewController {
+- (NYTPhotoViewController*)currentPhotoViewController {
     return self.pageViewController.viewControllers.firstObject;
 }
 
-- (UIView *)referenceViewForCurrentPhoto {
+- (UIView*)referenceViewForCurrentPhoto {
     if ([self.delegate respondsToSelector:@selector(photosViewController:referenceViewForPhoto:)]) {
         return [self.delegate photosViewController:self referenceViewForPhoto:self.currentlyDisplayedPhoto];
     }
-    
+
     return nil;
 }
 
@@ -401,19 +451,19 @@ static const UIEdgeInsets NYTPhotosViewControllerCloseButtinImageInsets = {3, 0,
 
 #pragma mark - NYTPhotoViewControllerDelegate
 
-- (void)photoViewController:(NYTPhotoViewController *)photoViewController didLongPressWithGestureRecognizer:(UILongPressGestureRecognizer *)longPressGestureRecognizer {
+- (void)photoViewController:(NYTPhotoViewController*)photoViewController didLongPressWithGestureRecognizer:(UILongPressGestureRecognizer*)longPressGestureRecognizer {
     self.shouldHandleLongPress = NO;
-    
+
     BOOL clientDidHandle = NO;
     if ([self.delegate respondsToSelector:@selector(photosViewController:handleLongPressForPhoto:withGestureRecognizer:)]) {
         clientDidHandle = [self.delegate photosViewController:self handleLongPressForPhoto:photoViewController.photo withGestureRecognizer:longPressGestureRecognizer];
     }
-    
+
     self.shouldHandleLongPress = !clientDidHandle;
-    
+
     if (self.shouldHandleLongPress) {
-        UIMenuController *menuController = [UIMenuController sharedMenuController];
-        CGRect targetRect = CGRectZero;
+        UIMenuController* menuController = [UIMenuController sharedMenuController];
+        CGRect targetRect                = CGRectZero;
         targetRect.origin = [longPressGestureRecognizer locationInView:longPressGestureRecognizer.view];
         [menuController setTargetRect:targetRect inView:longPressGestureRecognizer.view];
         [menuController setMenuVisible:YES animated:YES];
@@ -422,25 +472,37 @@ static const UIEdgeInsets NYTPhotosViewControllerCloseButtinImageInsets = {3, 0,
 
 #pragma mark - UIPageViewControllerDataSource
 
-- (UIViewController *)pageViewController:(UIPageViewController *)pageViewController viewControllerBeforeViewController:(UIViewController <NYTPhotoContainer> *)viewController {
+- (UIViewController*)pageViewController:(UIPageViewController*)pageViewController viewControllerBeforeViewController:(UIViewController <NYTPhotoContainer>*)viewController {
     NSUInteger photoIndex = [self.dataSource indexOfPhoto:viewController.photo];
     return [self newPhotoViewControllerForPhoto:self.dataSource[photoIndex - 1]];
 }
 
-- (UIViewController *)pageViewController:(UIPageViewController *)pageViewController viewControllerAfterViewController:(UIViewController <NYTPhotoContainer> *)viewController {
+- (UIViewController*)pageViewController:(UIPageViewController*)pageViewController viewControllerAfterViewController:(UIViewController <NYTPhotoContainer>*)viewController {
     NSUInteger photoIndex = [self.dataSource indexOfPhoto:viewController.photo];
     return [self newPhotoViewControllerForPhoto:self.dataSource[photoIndex + 1]];
 }
 
 #pragma mark - UIPageViewControllerDelegate
 
-- (void)pageViewController:(UIPageViewController *)pageViewController didFinishAnimating:(BOOL)finished previousViewControllers:(NSArray *)previousViewControllers transitionCompleted:(BOOL)completed {
+- (void)pageViewController:(UIPageViewController*)pageViewController willTransitionToViewControllers:(NSArray*)pendingViewControllers {
+    [self setOverlayViewHidden:YES animated:YES];
+}
+
+- (void)pageViewController:(UIPageViewController*)pageViewController didFinishAnimating:(BOOL)finished previousViewControllers:(NSArray*)previousViewControllers transitionCompleted:(BOOL)completed {
     if (completed) {
-        [self updateOverlayInformation];
-        
-        UIViewController <NYTPhotoContainer> *photoViewController = pageViewController.viewControllers.firstObject;
+        UIViewController <NYTPhotoContainer>* photoViewController = pageViewController.viewControllers.firstObject;
+
+        [self addOverlayViewFrom:photoViewController.view];
         [self didDisplayPhoto:photoViewController.photo];
     }
+    [self setOverlayViewHidden:NO animated:YES];
+}
+
+- (BOOL)gestureRecognizer:(UIGestureRecognizer*)gestureRecognizer shouldReceiveTouch:(UITouch*)touch {
+    if ([touch.view isDescendantOfView:self.overlayView]) {
+        return NO;
+    }
+    return YES;
 }
 
 @end
