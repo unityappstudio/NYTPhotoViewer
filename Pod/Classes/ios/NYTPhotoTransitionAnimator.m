@@ -76,6 +76,9 @@ static const CGFloat NYTPhotoTransitionAnimatorSpringDamping = 0.9;
     UIView *fromView = [NYTOperatingSystemCompatibilityUtility fromViewForTransitionContext:transitionContext];
     UIView *toView = [NYTOperatingSystemCompatibilityUtility toViewForTransitionContext:transitionContext];
     
+    UIViewController* fromViewController = [transitionContext viewControllerForKey:UITransitionContextFromViewControllerKey];
+    UIViewController* toViewController   = [transitionContext viewControllerForKey:UITransitionContextToViewControllerKey];
+    
     UIView *viewToFade = toView;
     CGFloat beginningAlpha = 0.0;
     CGFloat endingAlpha = 1.0;
@@ -88,9 +91,11 @@ static const CGFloat NYTPhotoTransitionAnimatorSpringDamping = 0.9;
     
     viewToFade.alpha = beginningAlpha;
     
+    [toViewController beginAppearanceTransition:YES animated:YES];
     [UIView animateWithDuration:[self fadeDurationForTransitionContext:transitionContext] animations:^{
         viewToFade.alpha = endingAlpha;
     } completion:^(BOOL finished) {
+        [toViewController endAppearanceTransition];
         if (!self.shouldPerformZoomingAnimation) {
             [self completeTransitionWithTransitionContext:transitionContext];
         }
