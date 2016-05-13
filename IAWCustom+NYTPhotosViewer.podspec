@@ -8,7 +8,7 @@ Pod::Spec.new do |s|
   s.homepage         = "https://github.com/NYTimes/NYTPhotoViewer"
   s.author           = "The New York Times"
   s.license          = { :type => 'Apache 2.0' }
-  s.source           = { :git => "https://github.com/unityappstudio/NYTPhotoViewer.git", :commit => '5d4b58a' }
+  s.source           = { :git => "https://github.com/unityappstudio/NYTPhotoViewer.git", :commit => '9fe7544' }
   s.dependency	'SDWebImage'
   s.platform     = :ios, '7.0'
   s.requires_arc = true
